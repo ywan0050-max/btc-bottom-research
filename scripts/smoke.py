@@ -45,6 +45,7 @@ async def run_smoke() -> dict[str, object]:
                 "/manifest.webmanifest",
                 "/icon.svg",
                 "/sw.js",
+                "/LICENSE",
                 "/",
             ]
             routes = []
@@ -66,6 +67,8 @@ async def run_smoke() -> dict[str, object]:
             health = health_response.json()
             if health.get("status") != "ok" or health.get("version") != "0.1.0":
                 raise RuntimeError("Unexpected health payload.")
+            if health.get("license") != "AGPL-3.0-only":
+                raise RuntimeError("Unexpected software license metadata.")
             if "no-store" not in health_response.headers.get("cache-control", ""):
                 raise RuntimeError("API Cache-Control header is missing no-store.")
             if health_response.headers.get("x-content-type-options") != "nosniff":

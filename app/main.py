@@ -8,13 +8,15 @@ from pathlib import Path
 from typing import AsyncIterator
 
 from fastapi import FastAPI, HTTPException, Query, Request, status
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from .config import (
     APP_VERSION,
+    APP_LICENSE,
     DB_PATH,
     DISABLE_BACKGROUND_TASKS,
+    LICENSE_PATH,
     RUNTIME_PATH,
     WEB_DIST,
 )
@@ -69,6 +71,10 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
 app = FastAPI(
     title="BTC Bottom Research Desk",
     version=APP_VERSION,
+    license_info={
+        "name": "GNU Affero General Public License v3.0 only",
+        "identifier": APP_LICENSE,
+    },
     lifespan=lifespan,
 )
 
@@ -119,6 +125,7 @@ def health() -> dict[str, object]:
     return {
         "status": "ok",
         "version": APP_VERSION,
+        "license": APP_LICENSE,
         "database": str(DB_PATH),
         "metrics": service.metric_names,
         "refresh": service.refresh_state,
@@ -214,6 +221,17 @@ async def refresh(request: Request) -> dict[str, object]:
     require_same_origin_request(request)
     accepted = service.start_refresh()
     return {"accepted": accepted, "refresh": service.refresh_state}
+
+
+@app.get("/LICENSE", include_in_schema=False)
+def license_document() -> FileResponse:
+    if not LICENSE_PATH.is_file():
+        raise HTTPException(status_code=404, detail="License document is unavailable.")
+    return FileResponse(
+        path=LICENSE_PATH,
+        media_type="text/plain; charset=utf-8",
+        filename=None,
+    )
 
 
 dist_path = Path(WEB_DIST)

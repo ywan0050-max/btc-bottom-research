@@ -1483,6 +1483,22 @@ footer {
   text-align: center;
 }
 
+footer span {
+  display: block;
+}
+
+footer a {
+  display: inline-block;
+  margin-top: 4px;
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+footer a:hover {
+  color: var(--text);
+}
+
 .bottom-nav {
   display: none;
 }

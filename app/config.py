@@ -6,6 +6,8 @@ from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 APP_VERSION = "0.1.0"
+APP_LICENSE = "AGPL-3.0-only"
+LICENSE_PATH = PROJECT_ROOT / "LICENSE"
 DATA_DIR = PROJECT_ROOT / "data"
 DB_PATH = Path(os.getenv("BTC_RESEARCH_DB", DATA_DIR / "research.duckdb"))
 PARQUET_DIR = Path(os.getenv("BTC_RESEARCH_PARQUET_DIR", DATA_DIR / "parquet"))

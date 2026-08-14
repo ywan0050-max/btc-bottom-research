@@ -91,6 +91,7 @@ try {
         "/manifest.webmanifest",
         "/icon.svg",
         "/sw.js",
+        "/LICENSE",
         "/"
     )) {
         $Response = Invoke-WebRequest `

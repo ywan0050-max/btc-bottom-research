@@ -4,6 +4,12 @@
 
 当前版本以 Windows 本地个人研究为主，源代码、自动化测试和构建流程均可放入公开 GitHub 仓库。运行时数据库、Parquet、日志和本机地址不会随仓库分发。
 
+## 软件许可证
+
+本项目源代码采用 [GNU Affero General Public License v3.0 only](LICENSE)（SPDX：`AGPL-3.0-only`）发布。任何人都可以运行、研究、修改和分发代码，也可以用于商业场景；如果修改后的版本通过网络向用户提供服务，需要按 AGPL-3.0 向这些用户提供对应源代码。
+
+软件许可证不授予第三方数据的再分发权。运行时获取的 Coin Metrics、FRED、Deribit 等数据仍分别受其来源条款约束，详见 [NOTICE.md](NOTICE.md)。
+
 ## 环境要求
 
 - Windows 10/11 与 PowerShell 5.1 或更高版本

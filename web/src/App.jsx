@@ -1251,7 +1251,10 @@ export default function App() {
           {error && <div className="notice notice-error"><CircleAlert size={17} /><span>接口暂时不可用：{error}</span></div>}
           {!error && staleCount > 0 && <div className="notice notice-warning"><Clock3 size={17} /><span>{staleCount} 项长期主线指标缺失或已过期，页面保留最后一次真实缓存并明确标记。</span></div>}
           {loading && !overview ? <div className="loading-state"><RefreshCw size={20} className="spin" /><span>正在读取研究数据</span></div> : content}
-          <footer>仅供个人研究，不构成投资建议。数据可能延迟、修订或暂时不可用。</footer>
+          <footer>
+            <span>仅供个人研究，不构成投资建议。数据可能延迟、修订或暂时不可用。</span>
+            <a href="/LICENSE" target="_blank" rel="noreferrer">AGPL-3.0-only</a>
+          </footer>
         </div>
       </main>
 
