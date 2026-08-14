@@ -34,7 +34,7 @@ def test_select_port_continues_after_the_preferred_range(monkeypatch) -> None:
 
 
 def test_main_uses_environment_port_and_writes_actual_runtime(
-    monkeypatch, tmp_path: Path
+    monkeypatch, tmp_path: Path, capsys
 ) -> None:
     runtime_path = tmp_path / "runtime.json"
     selected: dict[str, object] = {}
@@ -71,6 +71,10 @@ def test_main_uses_environment_port_and_writes_actual_runtime(
     assert '"lanUrl": "http://192.168.50.10:8789"' in runtime
     assert selected["uvicorn"][1]["host"] == "0.0.0.0"  # type: ignore[index]
     assert selected["uvicorn"][1]["port"] == 8789  # type: ignore[index]
+    output = capsys.readouterr().out
+    assert "8788" in output
+    assert "8789" in output
+    assert "http://127.0.0.1:8789" in output
 
 
 def test_main_reports_invalid_environment_port_cleanly(monkeypatch) -> None:
