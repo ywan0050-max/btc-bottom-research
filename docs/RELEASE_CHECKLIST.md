@@ -6,7 +6,7 @@
 - [ ] `git status --short` 只包含计划发布的源代码与文档。
 - [ ] `.\scripts\verify.ps1` 完整通过。
 - [ ] GitHub Actions Windows CI 通过。
-- [ ] GitHub 仓库 URL 确定后，在运行界面提供可访问的对应源码链接。
+- [x] GitHub 仓库 URL 确定后，在运行界面提供可访问的对应源码链接。
 - [ ] 新安装环境双击 `一键启动.cmd` 能自动安装、构建、选端口并打开页面；已有环境在依赖或前端源码更新后能自动同步。
 - [ ] `/api/health`、`/api/overview`、`/api/sources`、manifest、图标和 service worker 均返回成功。
 - [ ] 真实进程验证指定端口占用时自动避让，并打印实际本机地址。

@@ -2,7 +2,9 @@
 
 一个运行在 Windows 本地、完全依赖免费公开数据的 BTC 周期底部研究仪表盘。项目只读取公开市场与宏观数据，不接钱包、不保存交易所私钥、不自动下单，也不会自动配置公网端口转发。
 
-当前版本以 Windows 本地个人研究为主，源代码、自动化测试和构建流程均可放入公开 GitHub 仓库。运行时数据库、Parquet、日志和本机地址不会随仓库分发。
+公开源代码：[github.com/ywan0050-max/btc-bottom-research](https://github.com/ywan0050-max/btc-bottom-research)
+
+当前版本以 Windows 本地个人研究为主，源代码、自动化测试和构建流程已发布到公开 GitHub 仓库。运行时数据库、Parquet、日志和本机地址不会随仓库分发。
 
 ## 软件许可证
 

@@ -1487,6 +1487,13 @@ footer span {
   display: block;
 }
 
+footer .footer-links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px 12px;
+}
+
 footer a {
   display: inline-block;
   margin-top: 4px;

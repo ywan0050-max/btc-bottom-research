@@ -1253,7 +1253,10 @@ export default function App() {
           {loading && !overview ? <div className="loading-state"><RefreshCw size={20} className="spin" /><span>正在读取研究数据</span></div> : content}
           <footer>
             <span>仅供个人研究，不构成投资建议。数据可能延迟、修订或暂时不可用。</span>
-            <a href="/LICENSE" target="_blank" rel="noreferrer">AGPL-3.0-only</a>
+            <span className="footer-links">
+              <a href="https://github.com/ywan0050-max/btc-bottom-research" target="_blank" rel="noreferrer">对应源代码</a>
+              <a href="/LICENSE" target="_blank" rel="noreferrer">AGPL-3.0-only</a>
+            </span>
           </footer>
         </div>
       </main>

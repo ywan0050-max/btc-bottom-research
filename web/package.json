@@ -3,6 +3,14 @@
   "private": true,
   "version": "0.1.0",
   "license": "AGPL-3.0-only",
+  "homepage": "https://github.com/ywan0050-max/btc-bottom-research",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ywan0050-max/btc-bottom-research.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ywan0050-max/btc-bottom-research/issues"
+  },
   "type": "module",
   "engines": {
     "node": ">=20.19.0"

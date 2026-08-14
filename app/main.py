@@ -18,6 +18,7 @@ from .config import (
     DISABLE_BACKGROUND_TASKS,
     LICENSE_PATH,
     RUNTIME_PATH,
+    SOURCE_REPOSITORY,
     WEB_DIST,
 )
 from .db import Database
@@ -126,6 +127,7 @@ def health() -> dict[str, object]:
         "status": "ok",
         "version": APP_VERSION,
         "license": APP_LICENSE,
+        "sourceRepository": SOURCE_REPOSITORY,
         "database": str(DB_PATH),
         "metrics": service.metric_names,
         "refresh": service.refresh_state,
