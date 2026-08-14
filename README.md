@@ -2,11 +2,13 @@
 
 一个运行在 Windows 本地、完全依赖免费公开数据的 BTC 周期底部研究仪表盘。项目只读取公开市场与宏观数据，不接钱包、不保存交易所私钥、不自动下单，也不会自动配置公网端口转发。
 
+当前版本以 Windows 本地个人研究为主，源代码、自动化测试和构建流程均可放入公开 GitHub 仓库。运行时数据库、Parquet、日志和本机地址不会随仓库分发。
+
 ## 环境要求
 
 - Windows 10/11 与 PowerShell 5.1 或更高版本
 - Python 3.12
-- Node.js（建议使用当前 LTS）与 npm
+- Node.js 20.19 或更高版本（推荐 Node.js 22 LTS）与 npm
 - 首次安装和刷新数据时可访问互联网
 
 ## 一键启动
@@ -20,12 +22,14 @@
 
 运行时请保留启动窗口；在窗口中按 `Ctrl+C` 可停止服务。该入口只对当次 PowerShell 进程使用 `ExecutionPolicy Bypass`，不会修改 Windows 的全局执行策略。
 
+从 GitHub 下载 ZIP 或克隆仓库后，先进入解压/克隆得到的项目目录；不要把 README 中的示例路径当作固定安装位置。
+
 ## PowerShell 手动启动
 
 在项目目录打开 PowerShell：
 
 ```powershell
-Set-Location F:\btc-bottom-research
+Set-Location "C:\path\to\btc-bottom-research"
 .\setup.ps1
 .\start.ps1
 ```
@@ -36,7 +40,7 @@ Set-Location F:\btc-bottom-research
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 ```
 
-`setup.ps1` 会创建 `.venv`、安装 `requirements.txt`、安装 npm 依赖并构建 React 前端。`start.ps1` 在缺少 Python 环境时调用安装脚本，在缺少 `web/dist` 时自动构建前端。需要从 PowerShell 启动后自动打开页面时，使用 `./start.ps1 -OpenBrowser`。
+`setup.ps1` 会创建 Python 3.12 的 `.venv`、安装 `requirements.txt`、使用 `npm.cmd` 安装前端依赖并构建 React 前端。启动器会保存依赖与前端输入文件的内容指纹；从 GitHub 更新代码后，如果 `requirements.txt`、npm 锁文件或前端源码发生变化，`start.ps1` 会自动更新环境或重新构建，不会继续使用旧产物。需要从 PowerShell 启动后自动打开页面时，使用 `.\start.ps1 -OpenBrowser`。
 
 ## 端口选择
 
@@ -78,6 +82,8 @@ New-NetFirewallRule -DisplayName "BTC Research 8765" -Direction Inbound -Action 
 请把示例端口替换成 `.runtime.json` 中的实际端口。不要在不可信公共网络启用规则，不要配置路由器端口转发，也不要把服务直接暴露到公网。
 
 需要在外网私有访问时，可以在电脑和手机上分别安装 Tailscale，再通过电脑的 Tailscale IP 与实际端口访问。第一版不会自动安装或配置 Tailscale。
+
+服务的 Host 检查只接受 localhost、回环/私有/链路本地 IP 和 Tailscale `100.64.0.0/10` 地址。请使用启动器打印的 IP 地址访问；任意公网域名、公网 IP 或直接端口转发会被拒绝。
 
 ## 数据源
 
@@ -127,7 +133,7 @@ BTC 现货 ETF 每日净流入暂不接入。SEC EDGAR 官方 API 免费且无�
 $env:BTC_RESEARCH_DERIBIT_REFRESH_SECONDS = "900"
 $env:BTC_RESEARCH_SLOW_REFRESH_SECONDS = "21600"
 $env:BTC_RESEARCH_ARCHIVE_SECONDS = "86400"
-$env:BTC_RESEARCH_PARQUET_DIR = "F:\btc-bottom-research\data\parquet"
+$env:BTC_RESEARCH_PARQUET_DIR = (Join-Path $PWD "data\parquet")
 $env:BTC_RESEARCH_COLLECTOR_TIMEOUT = "45"  # 单个数据源最长等待秒数
 ```
 
@@ -186,11 +192,35 @@ BTC 长周期估值分独立显示。已实现价格和 NUPL 都由 MVRV 推导�
 - `GET /api/refresh-history?limit=20`：最近完整刷新历史与来源连续失败次数
 - `GET /api/sources`：来源、许可、最近刷新和分指标刷新结果
 - `POST /api/refresh`：请求刷新；已有刷新运行时不会启动重叠任务
+- `GET /docs`：FastAPI 自动生成的本地 API 文档
 
 所有 `/api/` 响应都使用 `no-store`。Service Worker 不拦截或缓存 API 请求。
+
+## 开发与验证
+
+运行依赖与开发测试依赖分开维护。首次开发时执行：
+
+```powershell
+.\setup.ps1
+.\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
+```
+
+提交改动前运行统一验证脚本：
+
+```powershell
+.\scripts\verify.ps1
+```
+
+该脚本会检查 PowerShell 启动器与构建指纹、Python 语法和依赖、运行完整 pytest、执行前端生产构建、检查核心 API/PWA 资源和写接口保护、启动真实单端口进程验证端口避让，并检查 npm 高危漏洞。只需要离线跳过 npm 漏洞查询时可使用 `.\scripts\verify.ps1 -SkipAudit`。
+
+公开仓库包含 Windows GitHub Actions：在 push、Pull Request 和手动触发时验证 Python 3.12、Node.js 22、单元测试、生产构建、依赖审计以及 FastAPI/前端/PWA 的单端口冒烟测试。CI 使用 `BTC_RESEARCH_DISABLE_BACKGROUND_TASKS=1` 禁止访问外部数据源；该变量仅用于测试与离线诊断，正常启动不要设置。
+
+贡献规则见 [CONTRIBUTING.md](CONTRIBUTING.md)，安全边界与私密报告方式见 [SECURITY.md](SECURITY.md)。
 
 ## 数据与隐私
 
 DuckDB 默认位于 `data/research.duckdb`，保存从公开接口取得的数据、评分历史、刷新与归档日志。Parquet 默认位于 `data/parquet`。可通过 `BTC_RESEARCH_DB` 指定其他数据库路径，通过 `BTC_RESEARCH_HTTP_TIMEOUT` 调整 HTTP 超时秒数。旧的 `BTC_RESEARCH_REFRESH_SECONDS` 仍可作为慢速刷新间隔的兼容设置，新配置优先使用分层刷新环境变量。
+
+这些运行时数据、缓存与本机配置均被 `.gitignore` 排除。仓库不会附带采集后的行情数据库。测试或多实例环境还可通过 `BTC_RESEARCH_RUNTIME_FILE` 指定独立的运行信息文件，避免覆盖默认 `.runtime.json`。第三方来源归属、非商业限制和再分发注意事项见 [NOTICE.md](NOTICE.md)；尤其是 Coin Metrics Community 数据采用 CC BY-NC 4.0，软件代码许可证不能替代或覆盖数据条款。
 
 本项目仅供个人研究与软件实验。公开数据可能延迟、缺失、修订或出现口径变化；评分是可解释的研究规则，不是价格预测、交易信号或投资建议。任何投资决策与风险均由使用者自行承担。

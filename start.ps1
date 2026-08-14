@@ -15,6 +15,9 @@ New-Item -ItemType Directory -Force -Path $LocalTemp | Out-Null
 $env:TEMP = $LocalTemp
 $env:TMP = $LocalTemp
 $env:npm_config_cache = Join-Path $LocalTemp "npm-cache"
+$SetupStatePath = Join-Path $LocalTemp "setup-state.json"
+$StateTools = Join-Path $ProjectRoot "scripts\project-state.ps1"
+. $StateTools
 
 function Get-RunningRuntime {
     param([string]$RuntimeFile)
@@ -88,24 +91,71 @@ if ($OpenBrowser -and $Port -eq 0 -and -not $StrictPort -and -not $Reload) {
     }
 }
 
-if (-not (Test-Path -LiteralPath $PythonPath) -or -not (Test-Path -LiteralPath $PipPath)) {
+$PythonFingerprint = Get-ProjectInputFingerprint -ProjectRoot $ProjectRoot -Kind Python
+$SetupState = Read-ProjectSetupState -StatePath $SetupStatePath
+$PythonSetupIsCurrent = (
+    $null -ne $SetupState -and
+    [string]$SetupState.pythonFingerprint -eq $PythonFingerprint
+)
+
+if (
+    -not (Test-Path -LiteralPath $PythonPath) -or
+    -not (Test-Path -LiteralPath $PipPath) -or
+    -not $PythonSetupIsCurrent
+) {
+    if ($null -ne $SetupState -and -not $PythonSetupIsCurrent) {
+        Write-Host "Python requirements changed; updating the local environment..."
+    }
     & (Join-Path $ProjectRoot "setup.ps1")
-} elseif (-not (Test-Path -LiteralPath $WebIndex)) {
+    if ($LASTEXITCODE -ne 0) { throw "Project setup failed." }
+    $SetupState = Read-ProjectSetupState -StatePath $SetupStatePath
+}
+
+$VenvPythonVersion = & $PythonPath -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')"
+if ($LASTEXITCODE -ne 0 -or $VenvPythonVersion -ne "3.12") {
+    throw "The existing .venv does not use Python 3.12. Rename or remove it manually, then run setup.ps1 again."
+}
+
+$WebDependenciesFingerprint = Get-ProjectInputFingerprint -ProjectRoot $ProjectRoot -Kind WebDependencies
+$WebBuildFingerprint = Get-ProjectInputFingerprint -ProjectRoot $ProjectRoot -Kind WebBuild
+$WebDependenciesAreCurrent = (
+    $null -ne $SetupState -and
+    [string]$SetupState.webDependenciesFingerprint -eq $WebDependenciesFingerprint -and
+    (Test-Path -LiteralPath (Join-Path $ProjectRoot "web\node_modules") -PathType Container)
+)
+$WebBuildIsCurrent = (
+    $null -ne $SetupState -and
+    [string]$SetupState.webBuildFingerprint -eq $WebBuildFingerprint -and
+    (Test-Path -LiteralPath $WebIndex -PathType Leaf)
+)
+
+if (-not $WebDependenciesAreCurrent -or -not $WebBuildIsCurrent) {
+    $NpmCommand = Get-Command npm.cmd -ErrorAction SilentlyContinue
+    if (-not $NpmCommand) {
+        throw "npm was not found. Install Node.js and run start.ps1 again."
+    }
     Push-Location (Join-Path $ProjectRoot "web")
     try {
-        if (-not (Test-Path -LiteralPath "node_modules")) {
+        if (-not $WebDependenciesAreCurrent) {
+            Write-Host "Web dependencies changed or are missing; installing from the lock file..."
             if (Test-Path -LiteralPath "package-lock.json") {
-                npm ci
+                & $NpmCommand.Source ci
             } else {
-                npm install
+                & $NpmCommand.Source install
             }
             if ($LASTEXITCODE -ne 0) { throw "Failed to install web dependencies." }
         }
-        npm run build
+        Write-Host "Web sources changed or the production build is missing; rebuilding..."
+        & $NpmCommand.Source run build
         if ($LASTEXITCODE -ne 0) { throw "Failed to build the web application." }
     } finally {
         Pop-Location
     }
+    Write-ProjectSetupState `
+        -StatePath $SetupStatePath `
+        -PythonFingerprint $PythonFingerprint `
+        -WebDependenciesFingerprint $WebDependenciesFingerprint `
+        -WebBuildFingerprint $WebBuildFingerprint
 }
 
 $Arguments = @((Join-Path $ProjectRoot "run.py"))
@@ -124,3 +174,7 @@ if ($OpenBrowser) {
 }
 
 & $PythonPath @Arguments
+$RunExitCode = $LASTEXITCODE
+if ($RunExitCode -ne 0) {
+    exit $RunExitCode
+}

@@ -411,6 +411,20 @@ section + section {
   padding: 8px 0 24px;
 }
 
+.metrics-short-cycle .short-cycle-content {
+  padding-top: 0;
+}
+
+.short-cycle-intro {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-left: 3px solid #b58a3b;
+  background: #fff9ed;
+  color: #74531f;
+  font-size: 11px;
+  line-height: 1.55;
+}
+
 .short-cycle-content section + section {
   margin-top: 28px;
 }

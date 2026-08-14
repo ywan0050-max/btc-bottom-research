@@ -1,0 +1,49 @@
+name: Bug 报告
+description: 报告可复现的安装、刷新、API 或界面问题
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: 请勿粘贴 API Key、Cookie、个人信息或包含本机用户名的完整日志。
+  - type: input
+    id: version
+    attributes:
+      label: 版本或提交
+      placeholder: 例如 v0.1.0 或提交哈希
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: 环境
+      placeholder: Windows 11、Python 3.12.x、Node.js 22.x
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 预期行为
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: 实际行为与已脱敏日志
+    validations:
+      required: true
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: 提交前确认
+      options:
+        - label: 我确认日志中不包含凭据、个人信息或私有路径
+          required: true
+        - label: 我没有把数据延迟或来源修订直接当作程序错误
+          required: true

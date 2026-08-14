@@ -142,9 +142,14 @@ class ResearchService:
             "error": error,
         }
 
-    def refresh_overview_cache(self) -> dict[str, Any]:
+    def refresh_overview_cache(
+        self, refresh_state: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         try:
-            overview = build_overview(self.database, copy.deepcopy(self._state))
+            overview = build_overview(
+                self.database,
+                copy.deepcopy(refresh_state if refresh_state is not None else self._state),
+            )
         except Exception as exc:
             with self._overview_lock:
                 self._overview_cache_error = self._error_text(exc)
@@ -359,22 +364,34 @@ class ResearchService:
             finished_at = datetime.now(timezone.utc)
             source_states = self._state["sources"].values()
             has_errors = any(source["status"] != "ok" for source in source_states)
-            self._state["status"] = (
-                "partial" if any_success and has_errors else "ok" if any_success else "error"
-            )
-            self._state["finishedAt"] = finished_at.isoformat()
+            final_state = {
+                **self._state,
+                "status": (
+                    "partial"
+                    if any_success and has_errors
+                    else "ok"
+                    if any_success
+                    else "error"
+                ),
+                "finishedAt": finished_at.isoformat(),
+            }
             overview = None
             try:
-                overview = await asyncio.to_thread(self.refresh_overview_cache)
+                overview = await asyncio.to_thread(
+                    self.refresh_overview_cache, final_state
+                )
             except Exception:
                 # Keep the previous valid cache; health exposes the cache error.
                 pass
-            if any_success and overview is not None:
-                await asyncio.to_thread(
-                    self.database.record_score_snapshot,
-                    overview,
-                    self.score_rule_version,
-                )
+            try:
+                if any_success and overview is not None:
+                    await asyncio.to_thread(
+                        self.database.record_score_snapshot,
+                        overview,
+                        self.score_rule_version,
+                    )
+            finally:
+                self._state = final_state
             return self._state
 
     async def archive(self) -> dict[str, Any]:

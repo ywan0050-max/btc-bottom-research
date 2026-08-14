@@ -1,5 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import * as echarts from "echarts";
+import { LineChart as EChartsLineChart, ScatterChart as EChartsScatterChart } from "echarts/charts";
+import {
+  GridComponent,
+  MarkAreaComponent,
+  MarkLineComponent,
+  TooltipComponent,
+} from "echarts/components";
+import * as echarts from "echarts/core";
+import { CanvasRenderer } from "echarts/renderers";
 import {
   Activity,
   Archive,
@@ -27,6 +35,16 @@ import {
   Pickaxe,
   Wifi,
 } from "lucide-react";
+
+echarts.use([
+  EChartsLineChart,
+  EChartsScatterChart,
+  GridComponent,
+  MarkAreaComponent,
+  MarkLineComponent,
+  TooltipComponent,
+  CanvasRenderer,
+]);
 
 const NAV_ITEMS = [
   { id: "overview", label: "总览", icon: LayoutDashboard },
@@ -95,6 +113,12 @@ const LONG_TERM_METRICS = new Set([
   "HashRate", "MiningDifficulty",
   "StablecoinSupplyUSD", "FearGreedIndex",
   "USM2",
+]);
+
+const SHORT_CYCLE_METRICS = new Set([
+  "FundingRate8h", "OpenInterestUSD", "TradeCVDUSD", "OrderBookImbalance25bps",
+  "ATMIV7D", "ATMIV30D", "ATMIV90D", "RR25_7D", "RR25_30D", "RR25_90D",
+  "BF25_30D", "IVTermSlope7D30D", "IVTermSlope30D90D",
 ]);
 
 const STATUS_LABELS = {
@@ -777,6 +801,28 @@ function FactorModelView({ overview }) {
   );
 }
 
+function QualityTable({ items, values }) {
+  return (
+    <div className="table-panel">
+      <table className="data-table quality-table">
+        <thead><tr><th>指标</th><th>当前值</th><th>频率</th><th>最新观测</th><th>年龄</th><th>状态</th></tr></thead>
+        <tbody>
+          {items.map((item) => (
+            <tr key={item.metric}>
+              <td data-label="指标"><strong>{METRIC_LABELS[item.metric] || item.metric}</strong><small>{item.metric}</small></td>
+              <td data-label="当前值">{values[item.metric]}</td>
+              <td data-label="频率">{FREQUENCY_LABELS[item.frequency] || item.frequency}</td>
+              <td data-label="最新观测">{formatDate(item.observedAt)}</td>
+              <td data-label="年龄">{formatAge(item.ageDays)}</td>
+              <td data-label="状态"><Status status={["retired", "paused", "error", "partial"].includes(item.refreshStatus) ? item.refreshStatus : item.available ? "ok" : "never"} stale={item.available && item.stale} /></td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 function MetricsView({ overview }) {
   const market = overview?.market || {};
   const cycle = overview?.cycle || {};
@@ -816,26 +862,31 @@ function MetricsView({ overview }) {
     IVTermSlope7D30D: options.termSlope7d30d == null ? "暂无数据" : `${formatNumber(options.termSlope7d30d, { maximumFractionDigits: 2 })} vol`,
     IVTermSlope30D90D: options.termSlope30d90d == null ? "暂无数据" : `${formatNumber(options.termSlope30d90d, { maximumFractionDigits: 2 })} vol`,
   };
+  const qualityItems = overview?.dataQuality || [];
+  const primaryItems = qualityItems.filter((item) => !SHORT_CYCLE_METRICS.has(item.metric));
+  const shortCycleItems = qualityItems.filter((item) => SHORT_CYCLE_METRICS.has(item.metric));
+  const primaryAvailable = primaryItems.filter((item) => item.available).length;
+  const shortCycleAvailable = shortCycleItems.filter((item) => item.available).length;
+  const shortCycleStale = shortCycleItems.filter((item) => item.available && item.stale).length;
   return (
     <section>
-      <SectionHeader title="指标可用性与时效" meta={`${overview?.availableMetrics?.length || 0} / ${overview?.dataQuality?.length || 20} 项可用`} />
-      <div className="table-panel">
-        <table className="data-table quality-table">
-          <thead><tr><th>指标</th><th>当前值</th><th>频率</th><th>最新观测</th><th>年龄</th><th>状态</th></tr></thead>
-          <tbody>
-            {(overview?.dataQuality || []).map((item) => (
-              <tr key={item.metric}>
-                <td data-label="指标"><strong>{METRIC_LABELS[item.metric] || item.metric}</strong><small>{item.metric}</small></td>
-                <td data-label="当前值">{values[item.metric]}</td>
-                <td data-label="频率">{FREQUENCY_LABELS[item.frequency] || item.frequency}</td>
-                <td data-label="最新观测">{formatDate(item.observedAt)}</td>
-                <td data-label="年龄">{formatAge(item.ageDays)}</td>
-                <td data-label="状态"><Status status={["retired", "paused", "error", "partial"].includes(item.refreshStatus) ? item.refreshStatus : item.available ? "ok" : "never"} stale={item.available && item.stale} /></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <SectionHeader title="长期与宏观指标" meta={`${primaryAvailable} / ${primaryItems.length} 项有真实数据`} />
+      <QualityTable items={primaryItems} values={values} />
+      {shortCycleItems.length > 0 && (
+        <details className="short-cycle-details metrics-short-cycle">
+          <summary className="short-cycle-summary">
+            <span>
+              <strong>短周期市场指标</strong>
+              <small>Deribit 单一市场 · {shortCycleAvailable}/{shortCycleItems.length} 项有历史缓存{shortCycleStale ? ` · ${shortCycleStale} 项已过期` : ""} · 默认收起</small>
+            </span>
+            <ChevronDown aria-hidden="true" size={19} />
+          </summary>
+          <div className="short-cycle-content">
+            <p className="short-cycle-intro">宏观长期模式暂停自动刷新。以下数据只用于反转确认研究，不参与长期底部环境分；旧真实缓存会保留并明确标记时效。</p>
+            <QualityTable items={shortCycleItems} values={values} />
+          </div>
+        </details>
+      )}
       <div className="metric-definitions">
         <h3>计算口径</h3>
         <dl>

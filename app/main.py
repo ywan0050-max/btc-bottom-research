@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import ipaddress
 import json
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -10,7 +11,13 @@ from fastapi import FastAPI, HTTPException, Query, Request, status
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from .config import DB_PATH, PROJECT_ROOT, WEB_DIST
+from .config import (
+    APP_VERSION,
+    DB_PATH,
+    DISABLE_BACKGROUND_TASKS,
+    RUNTIME_PATH,
+    WEB_DIST,
+)
 from .db import Database
 from .models import CvddReferenceInput
 from .service import ResearchService
@@ -18,6 +25,20 @@ from .service import ResearchService
 
 database = Database(DB_PATH)
 service = ResearchService(database)
+ALLOWED_HOST_NETWORKS = tuple(
+    ipaddress.ip_network(network)
+    for network in (
+        "127.0.0.0/8",
+        "10.0.0.0/8",
+        "172.16.0.0/12",
+        "192.168.0.0/16",
+        "169.254.0.0/16",
+        "100.64.0.0/10",
+        "::1/128",
+        "fc00::/7",
+        "fe80::/10",
+    )
+)
 
 
 @asynccontextmanager
@@ -29,37 +50,66 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     except Exception:
         # The API can still start and expose cache diagnostics in /api/health.
         pass
-    scheduler_task = asyncio.create_task(service.scheduler())
+    scheduler_task = (
+        None
+        if DISABLE_BACKGROUND_TASKS
+        else asyncio.create_task(service.scheduler())
+    )
     try:
         yield
     finally:
-        scheduler_task.cancel()
-        try:
-            await scheduler_task
-        except asyncio.CancelledError:
-            pass
+        if scheduler_task is not None:
+            scheduler_task.cancel()
+            try:
+                await scheduler_task
+            except asyncio.CancelledError:
+                pass
 
 
 app = FastAPI(
     title="BTC Bottom Research Desk",
-    version="0.1.0",
+    version=APP_VERSION,
     lifespan=lifespan,
 )
 
 
+def host_is_allowed(hostname: str | None) -> bool:
+    if not hostname:
+        return False
+    normalized = hostname.rstrip(".").casefold()
+    if normalized == "localhost":
+        return True
+    try:
+        address = ipaddress.ip_address(normalized)
+    except ValueError:
+        return False
+    return any(address in network for network in ALLOWED_HOST_NETWORKS)
+
+
 @app.middleware("http")
 async def api_cache_control(request: Request, call_next):
-    response = await call_next(request)
+    if not host_is_allowed(request.url.hostname):
+        response = JSONResponse(
+            {"detail": "Host is not allowed. Use a local, LAN, or Tailscale IP."},
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
+    else:
+        response = await call_next(request)
     if request.url.path.startswith("/api/"):
         response.headers["Cache-Control"] = "no-store"
         response.headers["Pragma"] = "no-cache"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "same-origin"
+    response.headers["Permissions-Policy"] = (
+        "camera=(), microphone=(), geolocation=(), payment=()"
+    )
     return response
 
 
 def runtime_info() -> dict[str, object] | None:
-    runtime_path = PROJECT_ROOT / ".runtime.json"
     try:
-        return json.loads(runtime_path.read_text(encoding="utf-8"))
+        return json.loads(RUNTIME_PATH.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
         return None
 
@@ -68,6 +118,7 @@ def runtime_info() -> dict[str, object] | None:
 def health() -> dict[str, object]:
     return {
         "status": "ok",
+        "version": APP_VERSION,
         "database": str(DB_PATH),
         "metrics": service.metric_names,
         "refresh": service.refresh_state,
@@ -124,10 +175,23 @@ def require_loopback_client(request: Request) -> None:
         )
 
 
+def require_same_origin_request(request: Request) -> None:
+    origin = request.headers.get("origin")
+    if not origin:
+        return
+    expected_origin = f"{request.url.scheme}://{request.url.netloc}"
+    if origin.rstrip("/").casefold() != expected_origin.rstrip("/").casefold():
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Cross-origin writes are not allowed.",
+        )
+
+
 @app.post("/api/references/cvdd", status_code=status.HTTP_201_CREATED)
 def add_cvdd_reference(
     payload: CvddReferenceInput, request: Request
 ) -> dict[str, object]:
+    require_same_origin_request(request)
     require_loopback_client(request)
     return service.add_cvdd_reference(
         payload.source_name,
@@ -146,7 +210,8 @@ def refresh_history(
 
 
 @app.post("/api/refresh", status_code=status.HTTP_202_ACCEPTED)
-async def refresh() -> dict[str, object]:
+async def refresh(request: Request) -> dict[str, object]:
+    require_same_origin_request(request)
     accepted = service.start_refresh()
     return {"accepted": accepted, "refresh": service.refresh_state}
 

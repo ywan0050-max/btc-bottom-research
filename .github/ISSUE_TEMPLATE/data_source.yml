@@ -1,0 +1,46 @@
+name: 数据源建议
+description: 建议可长期使用的免费公开数据源或指标
+title: "[数据源] "
+labels: ["data-source"]
+body:
+  - type: input
+    id: name
+    attributes:
+      label: 来源名称
+    validations:
+      required: true
+  - type: input
+    id: url
+    attributes:
+      label: 官方接口或文档地址
+    validations:
+      required: true
+  - type: textarea
+    id: series
+    attributes:
+      label: 序列、频率、单位与历史覆盖
+    validations:
+      required: true
+  - type: textarea
+    id: terms
+    attributes:
+      label: 免费范围、许可与再分发条款
+      description: 请提供官方条款链接，不要只写“公开网页可见”。
+    validations:
+      required: true
+  - type: textarea
+    id: value
+    attributes:
+      label: 与 BTC 长期底部研究的关系
+      description: 说明是否与已有指标同源、如何避免重复计权。
+    validations:
+      required: true
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: 确认
+      options:
+        - label: 无需付费订阅、钱包或交易所私钥
+          required: true
+        - label: 来源提供稳定公开接口或可审计官方文件
+          required: true

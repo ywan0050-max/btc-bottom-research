@@ -1,0 +1,71 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 25
+    env:
+      BTC_RESEARCH_DISABLE_BACKGROUND_TASKS: "1"
+      BTC_RESEARCH_DB: ${{ github.workspace }}\.tmp\ci.duckdb
+      BTC_RESEARCH_RUNTIME_FILE: ${{ github.workspace }}\.tmp\ci-runtime.json
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Run Windows setup
+        shell: powershell
+        run: powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File .\setup.ps1
+
+      - name: Install development dependencies
+        shell: powershell
+        run: .\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
+
+      - name: Check Python syntax
+        shell: powershell
+        run: .\.venv\Scripts\python.exe -m compileall -q app tests run.py
+
+      - name: Check Python dependencies
+        shell: powershell
+        run: .\.venv\Scripts\python.exe -m pip check
+
+      - name: Run tests
+        shell: powershell
+        run: .\.venv\Scripts\python.exe -m pytest -q tests
+
+      - name: Build web application
+        working-directory: web
+        run: npm.cmd run build
+
+      - name: Audit web dependencies
+        working-directory: web
+        run: npm.cmd audit --audit-level=high
+
+      - name: Smoke test API and PWA in process
+        shell: powershell
+        run: .\.venv\Scripts\python.exe scripts\smoke.py
+
+      - name: Smoke test single-port service and port fallback
+        shell: pwsh
+        run: .\scripts\service-smoke.ps1 -PythonPath .\.venv\Scripts\python.exe

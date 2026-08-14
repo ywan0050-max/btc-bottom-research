@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from typing import Any
+from urllib.parse import urlsplit, urlunsplit
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -47,9 +48,22 @@ class CvddReferenceInput(BaseModel):
     @classmethod
     def validate_source_url(cls, value: str) -> str:
         normalized = value.strip()
-        if not normalized.lower().startswith(("https://", "http://")):
-            raise ValueError("source_url must start with http:// or https://")
-        return normalized
+        parsed = urlsplit(normalized)
+        if parsed.scheme.lower() not in {"http", "https"} or not parsed.hostname:
+            raise ValueError("source_url must be a complete http:// or https:// URL")
+        if parsed.username is not None or parsed.password is not None:
+            raise ValueError("source_url must not contain credentials")
+        if any(character.isspace() for character in normalized):
+            raise ValueError("source_url must not contain whitespace")
+        return urlunsplit(
+            (
+                parsed.scheme.lower(),
+                parsed.netloc,
+                parsed.path,
+                parsed.query,
+                parsed.fragment,
+            )
+        )
 
     @field_validator("observed_date")
     @classmethod

@@ -9,6 +9,8 @@ from pathlib import Path
 
 import uvicorn
 
+from app.config import RUNTIME_PATH
+
 
 PROJECT_ROOT = Path(__file__).resolve().parent
 DEFAULT_PORT_START = 8765
@@ -84,7 +86,10 @@ def main() -> None:
         requested = args.port or (int(env_port) if env_port else None)
     except ValueError as exc:
         raise SystemExit("BTC_RESEARCH_PORT must be an integer.") from exc
-    port = select_port(requested, strict=args.strict_port)
+    try:
+        port = select_port(requested, strict=args.strict_port)
+    except (ValueError, RuntimeError) as exc:
+        raise SystemExit(str(exc)) from exc
     lan_ip = discover_lan_ip()
 
     local_url = f"http://127.0.0.1:{port}"
@@ -96,7 +101,8 @@ def main() -> None:
         "lanUrl": lan_url,
         "startedAt": datetime.now(timezone.utc).isoformat(),
     }
-    (PROJECT_ROOT / ".runtime.json").write_text(
+    RUNTIME_PATH.parent.mkdir(parents=True, exist_ok=True)
+    RUNTIME_PATH.write_text(
         json.dumps(runtime, ensure_ascii=False, indent=2), encoding="utf-8"
     )
 

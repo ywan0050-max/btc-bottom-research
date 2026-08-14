@@ -1,6 +1,7 @@
 import asyncio
 
 import app.service as service_module
+from app.models import CollectorResult
 from app.service import ResearchService
 
 
@@ -98,3 +99,51 @@ def test_refresh_history_hides_failures_for_retired_or_paused_sources() -> None:
     assert service.refresh_history()["consecutiveFailures"] == [
         {"source": "coinmetrics_community", "count": 1}
     ]
+
+
+def test_refresh_stays_running_until_final_overview_cache_is_ready(monkeypatch) -> None:
+    class InstantCollector:
+        source = "instant"
+        name = "Instant source"
+        metrics = ("InstantMetric",)
+
+        async def collect(self, _watermarks):
+            return CollectorResult(
+                source=self.source,
+                points=[],
+                source_url="https://example.com",
+                description="test",
+                expected_metrics=self.metrics,
+            )
+
+    class FakeDatabase:
+        @staticmethod
+        def latest_observed_times(_metrics):
+            return {}
+
+        @staticmethod
+        def replace_series_counts(_points):
+            return {}
+
+        @staticmethod
+        def record_refresh_result(*_args):
+            return None
+
+        @staticmethod
+        def record_score_snapshot(*_args):
+            return None
+
+    service = ResearchService(FakeDatabase())
+    collector = InstantCollector()
+    observed_states = []
+
+    def fake_cache(final_state):
+        observed_states.append((service.refresh_state["status"], final_state["status"]))
+        return {"generatedAt": final_state["finishedAt"], "scores": {}}
+
+    monkeypatch.setattr(service, "refresh_overview_cache", fake_cache)
+
+    result = asyncio.run(service.refresh([collector], trigger="test"))
+
+    assert observed_states == [("running", "ok")]
+    assert result["status"] == "ok"
