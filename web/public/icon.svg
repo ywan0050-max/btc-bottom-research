@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="BTC 底部研究台">
+  <rect width="512" height="512" rx="72" fill="#17211f"/>
+  <path d="M96 338h70l48-76 54 34 66-118 82 0" fill="none" stroke="#49a99e" stroke-width="30" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="334" cy="178" r="25" fill="#e0a63b"/>
+  <path d="M256 103v62m0 182v62m37-250c61 0 74 84 4 91 83 4 70 102 1 102h-79V159h74zm-74 91h77m-77 102h79" fill="none" stroke="#f7f8f5" stroke-width="23" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

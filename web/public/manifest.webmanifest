@@ -1,0 +1,19 @@
+{
+  "name": "BTC 底部研究台",
+  "short_name": "BTC 研究台",
+  "description": "基于免费公开数据的个人 BTC 底部研究工具",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f3f5f2",
+  "theme_color": "#17211f",
+  "lang": "zh-CN",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

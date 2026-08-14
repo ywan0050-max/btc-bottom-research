@@ -1,0 +1,6 @@
+fastapi>=0.115,<1
+uvicorn[standard]>=0.34,<1
+duckdb>=1.2,<2
+httpx>=0.28,<1
+pytz>=2025.2
+pytest>=8.3,<9
